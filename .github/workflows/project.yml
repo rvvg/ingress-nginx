@@ -9,6 +9,7 @@ jobs:
   add-to-project:
     name: Add issue to project
     runs-on: ubuntu-latest
+    if: github.repository == 'kubernetes/ingress-nginx'
     permissions:
       repository-projects: write
       issues: write

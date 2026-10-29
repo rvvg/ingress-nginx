@@ -17,6 +17,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    if: github.repository == 'kubernetes/ingress-nginx'
 
     permissions:
       contents: write
