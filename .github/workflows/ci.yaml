@@ -186,6 +186,15 @@ jobs:
             export TAG=$(cat images/nginx/TAG)
             cd images/nginx/rootfs && docker buildx build --platform=${{ env.PLATFORMS }} --load -t registry.k8s.io/ingress-nginx/nginx:${TAG} .
 
+      # registry.k8s.io never got our base image, so reuse the one published by the Release (GHCR) workflow.
+      - name: Pull NGINX Base image
+        if: |
+          needs.changes.outputs.baseimage != 'true'
+        run: |
+            export TAG=$(cat images/nginx/TAG)
+            docker pull ghcr.io/${{ github.repository_owner }}/ingress-nginx/nginx:${TAG}
+            docker tag ghcr.io/${{ github.repository_owner }}/ingress-nginx/nginx:${TAG} registry.k8s.io/ingress-nginx/nginx:${TAG}
+
       - name: Build images
         env:
           TAG: 1.0.0-dev
