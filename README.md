@@ -1,3 +1,134 @@
+# ingress-nginx with NGINX 1.31.8
+
+This repository is a maintained build of [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
+`controller-v1.15.1` / chart `4.15.1`. The upstream project is retired and archived (see [below](#retiring)).
+This repository is not affiliated with the Kubernetes project.
+
+The controller code is unchanged from upstream except for a single template change (see [Behavior changes](#behavior-changes)).
+The NGINX base image is updated to NGINX 1.31.8 (mainline) with the patch set and Lua modules from
+[OpenResty v1.31.8.1](https://github.com/openresty/openresty/tree/v1.31.8.1). As in upstream, the build tracks the
+NGINX mainline version that OpenResty is based on: upstream used 1.21.6, 1.25.x and 1.27.1, all of which were mainline.
+
+## Versions
+
+| Component                 | Upstream v1.15.1 | This build            |
+| ------------------------- | ---------------- | --------------------- |
+| Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.8  |
+| Helm chart version        | 4.15.1           | 4.15.1-nginx-1.31.8   |
+| NGINX base image tag      | v2.2.8           | v2.3.0                |
+| NGINX                     | 1.27.1           | 1.31.8                |
+| OpenResty patch set       | 1.27.1.2         | 1.31.8.1              |
+| lua-nginx-module          | v0.10.28         | v0.10.32rc7           |
+| stream-lua-nginx-module   | v0.0.16          | v0.0.20rc3            |
+| lua-resty-core            | v0.1.31          | v0.1.35rc2            |
+| LuaJIT (openresty/luajit2)| v2.1-20250117    | v2.1-20261023         |
+| lua-upstream-nginx-module | v0.07            | v0.08                 |
+| ngx_devel_kit             | v0.3.3 (vision5) | v0.3.6 (openresty)    |
+| set-misc-nginx-module     | v0.33            | v0.34                 |
+| headers-more-nginx-module | v0.37            | v0.40                 |
+| lua-cjson                 | 2.1.0.14         | 2.1.0.20              |
+| lua-resty-dns / string / memcached / redis | v0.23 / v0.16 / v0.17 / v0.31 | v0.24 / v0.19 / v0.18 / v0.34 |
+| njs                       | 0.9.0            | 1.0.2                 |
+| Alpine / OpenSSL          | 3.23.3 / 3.5.x   | 3.23.3 / 3.5.9        |
+
+Module versions are taken from OpenResty v1.31.8.1 (`util/mirror-tarballs`). OpenResty publishes the Lua modules for this
+release line only as `rc` tags. All other modules (ModSecurity, OWASP CRS, geoip2, brotli, OpenTelemetry, mimalloc, ...)
+are unchanged from upstream. The full list is in [`images/nginx/rootfs/build.sh`](images/nginx/rootfs/build.sh).
+
+## NGINX patches
+
+[`images/nginx/rootfs/patches/`](images/nginx/rootfs/patches) contains:
+
+- `00_drop-alias-root.patch`: the upstream ingress-nginx patch that removes the `root` and `alias` directives, regenerated for 1.31.8.
+- `01`–`37`: OpenResty `patches/nginx/1.31.8`, applied in the same order as OpenResty applies them.
+
+The following OpenResty patches are not applied:
+
+| Patch                                                           | Reason                                                       |
+| --------------------------------------------------------------- | ------------------------------------------------------------ |
+| `server_header`, `builtin_error_page_footer`                    | OpenResty branding; also not applied by upstream ingress-nginx |
+| `no_pool`                                                       | Debug-only build option                                      |
+| `CVE-2026-9256`, `hash_overflow`, `setting_args_invalidates_uri` | OpenResty applies them only to older NGINX versions; not needed for 1.31.8 |
+| `initialize_quic_transport_id_variable`, `resolver_hosts`       | Present in the patch directory but not applied by OpenResty v1.31.8.1 |
+
+The following upstream ingress-nginx patches were dropped because NGINX now includes the fix or feature:
+`CVE-2025-23419` (fixed in NGINX) and `stream_proxy_protocol_v2` (PROXY protocol v2 in the stream module is native since NGINX 1.31.4).
+
+## Behavior changes
+
+Template ([`rootfs/etc/nginx/template/nginx.tmpl`](rootfs/etc/nginx/template/nginx.tmpl)):
+
+- `upstream upstream_balancer` emits `keepalive 0;` when `upstream-keepalive-connections` is `0`. Since NGINX 1.29.7, upstream
+  keepalive is enabled by default (`keepalive 32 local`). Without this line, setting the option to `0` would no longer disable it.
+
+NGINX 1.27.1 → 1.31.8 changes that can affect traffic (full list: [CHANGES](https://nginx.org/en/CHANGES)):
+
+- 1.27.3: TLSv1 and TLSv1.1 are disabled by default. ingress-nginx sets `ssl_protocols` explicitly.
+- 1.29.4: Host/port validation in the request line, `Host` and `:authority` follows RFC 3986. A bare LF in chunked bodies is an error.
+- 1.29.7: Upstream keepalive is on by default. The proxy module defaults to `proxy_http_version 1.1` and no longer sends `Connection`.
+  ingress-nginx sets both explicitly per location.
+- 1.31.0: HTTP/2 and HTTP/3 requests with `Connection`, `Proxy-Connection`, `Keep-Alive`, `Transfer-Encoding`, `Upgrade`, or a `TE`
+  header other than `trailers` are rejected.
+- 1.31.2: `$request_id` is generated with SipHash-2-4.
+- 1.31.3: HTTP/2 response headers from gRPC/HTTP/2 backends are limited by `grpc_buffer_size` / `proxy_buffer_size`.
+- 1.31.4: HTTP/2 and gRPC requests to backends always carry `:authority`, and HTTP/1.1 requests always carry `Host`.
+- 1.31.7: HTTP/2 uses RFC 9218 prioritization. RFC 7540 priority signals are ignored.
+
+## Artifacts
+
+Published by [`.github/workflows/release-ghcr.yaml`](.github/workflows/release-ghcr.yaml) for `linux/amd64` and `linux/arm64`:
+
+| Artifact          | Reference                                                    |
+| ----------------- | ------------------------------------------------------------ |
+| NGINX base image  | `ghcr.io/rvvg/ingress-nginx/nginx:v2.3.0`                    |
+| Controller        | `ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8` |
+| Controller chroot | `ghcr.io/rvvg/ingress-nginx/controller-chroot:v1.15.1-nginx-1.31.8` |
+| Helm chart (OCI)  | `oci://ghcr.io/rvvg/charts/ingress-nginx`, version `4.15.1-nginx-1.31.8` |
+
+The published chart pins `controller.image.{registry,tag,digest,digestChroot}` to the images above. The other images
+(`kube-webhook-certgen`, `defaultbackend`) still default to `registry.k8s.io`. `values.yaml` in this repository keeps
+the upstream defaults, so the chart unit tests still pass.
+
+```console
+helm upgrade --install ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
+  --version 4.15.1-nginx-1.31.8 \
+  --namespace ingress-nginx --create-namespace
+```
+
+## Build
+
+Locally (Docker, single architecture):
+
+```console
+# NGINX base image
+docker build --platform linux/amd64 -t <registry>/nginx:v2.3.0 images/nginx/rootfs
+
+# Controller on top of it
+make build image image-chroot ARCH=amd64 TAG=<tag> REGISTRY=<registry> BASE_IMAGE=<registry>/nginx:v2.3.0
+```
+
+CI:
+
+- Pull requests that touch `images/nginx/**` or `NGINX_BASE` run [`ci.yaml`](.github/workflows/ci.yaml). It builds the base
+  image and the controller in the job and runs the kind e2e suite against Kubernetes 1.31–1.35, including chroot and chart tests.
+- Release: run the `Release (GHCR)` workflow manually from `main` (`gh workflow run release-ghcr.yaml`). It builds on native
+  amd64 and arm64 runners and reuses an existing base image tag unless `rebuild-base` is set. It refuses to overwrite an existing
+  controller tag unless `force` is set. Use the `revision` input to publish `-rN` builds without an NGINX version change.
+
+Versions are derived from the repository: `images/nginx/TAG` for the base image, and `Chart.yaml` `appVersion` / `version`
+plus `-nginx-<NGINX_VERSION from build.sh>` for the controller and the chart.
+
+### Updating NGINX
+
+1. Pick the NGINX version of the latest OpenResty release and copy its `patches/nginx/<version>` set. Use the patch order and
+   version conditions from `util/mirror-tarballs`.
+2. Update `NGINX_VERSION`, the Lua module versions (from the same `mirror-tarballs`) and the checksums in `build.sh`.
+   Regenerate `00_drop-alias-root.patch` if it no longer applies.
+3. Bump `images/nginx/TAG` and review the NGINX `CHANGES` for default changes that affect `nginx.tmpl`.
+4. Open a PR. CI builds the base image and runs e2e. After merging, run `Release (GHCR)`.
+
+---
+
 # Ingress NGINX Retirement
 
 ## Retiring
