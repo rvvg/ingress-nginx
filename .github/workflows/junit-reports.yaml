@@ -7,6 +7,7 @@ on:
       - completed
 
 permissions:
+  actions: read
   checks: write
 
 jobs:
@@ -15,7 +16,19 @@ jobs:
     if: github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     steps:
+      # CI skips e2e when no relevant files changed or the build failed, so only report when e2e artifacts exist.
+      - name: Check for e2e reports
+        id: reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" \
+            --jq '[.artifacts[] | select(.name | startswith("e2e-test-reports-"))] | length' | awk '{s+=$1} END {print s+0}')
+          echo "Found ${count} e2e report artifact(s)"
+          echo "found=$([ "${count}" -gt 0 ] && echo true || echo false)" >> "${GITHUB_OUTPUT}"
+
       - uses: dorny/test-reporter@3d76b34a4535afbd0600d347b09a6ee5deb3ed7f # v2.6.0
+        if: steps.reports.outputs.found == 'true'
         with:
           artifact: /e2e-test-reports-(.*)/
           name: JEST Tests $1               # Name of the check run which will be created
