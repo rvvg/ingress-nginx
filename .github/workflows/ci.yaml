@@ -299,12 +299,19 @@ jobs:
       - name: Load cache
         run: gzip --decompress --stdout docker.tar.gz | docker load
 
-      - name: Install kind
+      # The runner's preinstalled kubectl is newer than the +/-1 skew supported by older clusters in the matrix.
+      - name: Install kind and kubectl
+        env:
+          KUBECTL_VERSION: ${{ matrix.k8s }}
         run: |
           curl -fsSLo kind https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
           echo "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d  kind" | sha256sum -c -
           sudo install -m 0755 kind /usr/local/bin/kind
           kind version
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          echo "$(curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256")  kubectl" | sha256sum -c -
+          sudo install -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
 
       - name: Run tests
         env:
