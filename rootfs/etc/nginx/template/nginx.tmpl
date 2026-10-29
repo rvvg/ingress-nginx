@@ -536,6 +536,9 @@ http {
         keepalive_time {{ $cfg.UpstreamKeepaliveTime }};
         keepalive_timeout  {{ $cfg.UpstreamKeepaliveTimeout }}s;
         keepalive_requests {{ $cfg.UpstreamKeepaliveRequests }};
+        {{ else }}
+        # Since NGINX v1.29.7 keepalive is enabled by default, so disable it explicitly.
+        keepalive 0;
         {{ end }}
     }
 
