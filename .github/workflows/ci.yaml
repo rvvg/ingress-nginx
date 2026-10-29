@@ -62,10 +62,13 @@ jobs:
               - 'TAG'
               - 'test/e2e/**/*'
               - 'NGINX_BASE'
+              - '.github/workflows/ci.yaml'
+              - '.github/workflows/zz-tmpl-k8s-e2e.yaml'
             charts:
               - 'charts/ingress-nginx/Chart.yaml'
               - 'charts/ingress-nginx/**/*'
               - 'NGINX_BASE'
+              - '.github/workflows/ci.yaml'
             baseimage:
               - 'NGINX_BASE'
               - 'images/nginx/**'
@@ -273,7 +276,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1]
+        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1, v1.36.4, v1.37.0]
 
     steps:
       - name: Checkout code
@@ -286,6 +289,13 @@ jobs:
 
       - name: Load cache
         run: gzip --decompress --stdout docker.tar.gz | docker load
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+          echo "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d  kind" | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+          kind version
 
       - name: Run tests
         env:
@@ -305,7 +315,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1]
+        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1, v1.36.4, v1.37.0]
     uses: ./.github/workflows/zz-tmpl-k8s-e2e.yaml
     with:
       k8s-version: ${{ matrix.k8s }}
@@ -320,7 +330,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1]
+        k8s: [v1.31.14, v1.32.11, v1.33.7, v1.34.3, v1.35.1, v1.36.4, v1.37.0]
     uses: ./.github/workflows/zz-tmpl-k8s-e2e.yaml
     with:
       k8s-version: ${{ matrix.k8s }}

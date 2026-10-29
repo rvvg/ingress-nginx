@@ -27,6 +27,13 @@ jobs:
         with:
           name: docker.tar.gz
 
+      - name: Install kind
+        run: |
+          curl -fsSLo kind https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+          echo "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d  kind" | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+          kind version
+
       - name: Create Kubernetes ${{ inputs.k8s-version }} cluster
         id: kind
         run: |
