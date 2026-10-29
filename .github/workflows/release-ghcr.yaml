@@ -236,7 +236,12 @@ jobs:
       - name: Push images
         run: |
           for image in controller controller-chroot; do
-            docker tag "${REGISTRY}/${image}:${CONTROLLER_TAG}" "${REGISTRY}/${image}:${CONTROLLER_TAG}-${{ matrix.arch }}"
+            # The upstream Dockerfile labels the image with kubernetes/ingress-nginx as source. GHCR links packages
+            # to the repository named in that label and then denies pushes with this repository's GITHUB_TOKEN.
+            echo "FROM ${REGISTRY}/${image}:${CONTROLLER_TAG}" | docker build \
+              --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+              --tag "${REGISTRY}/${image}:${CONTROLLER_TAG}-${{ matrix.arch }}" \
+              -
             docker push "${REGISTRY}/${image}:${CONTROLLER_TAG}-${{ matrix.arch }}"
           done
 
