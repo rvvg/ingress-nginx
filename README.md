@@ -110,7 +110,7 @@ make build image image-chroot ARCH=amd64 TAG=<tag> REGISTRY=<registry> BASE_IMAG
 CI:
 
 - Pull requests that touch `images/nginx/**` or `NGINX_BASE` run [`ci.yaml`](.github/workflows/ci.yaml). It builds the base
-  image and the controller in the job and runs the kind e2e suite against Kubernetes 1.31–1.35, including chroot and chart tests.
+  image and the controller in the job and runs the kind e2e suite against Kubernetes 1.31–1.37, including chroot and chart tests.
 - Release: run the `Release (GHCR)` workflow manually from `main` (`gh workflow run release-ghcr.yaml`). It builds on native
   amd64 and arm64 runners and reuses an existing base image tag unless `rebuild-base` is set. It refuses to overwrite an existing
   controller tag unless `force` is set. Use the `revision` input to publish `-rN` builds without an NGINX version change.
