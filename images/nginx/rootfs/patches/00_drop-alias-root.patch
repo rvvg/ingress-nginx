@@ -1,6 +1,5 @@
-:100644 100644 c7463dcd 00000000 M	src/http/ngx_http_core_module.c
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index c7463dcd..e2e45931 100644
+index 30ae6e0..671f824 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -55,7 +55,6 @@ static char *ngx_http_core_listen(ngx_conf_t *cf, ngx_command_t *cmd,
@@ -11,7 +10,7 @@ index c7463dcd..e2e45931 100644
  static char *ngx_http_core_limit_except(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
  static char *ngx_http_core_set_aio(ngx_conf_t *cf, ngx_command_t *cmd,
-@@ -323,21 +322,6 @@ static ngx_command_t  ngx_http_core_commands[] = {
+@@ -330,21 +329,6 @@ static ngx_command_t  ngx_http_core_commands[] = {
        offsetof(ngx_http_core_loc_conf_t, default_type),
        NULL },
  
@@ -33,7 +32,7 @@ index c7463dcd..e2e45931 100644
      { ngx_string("limit_except"),
        NGX_HTTP_LOC_CONF|NGX_CONF_BLOCK|NGX_CONF_1MORE,
        ngx_http_core_limit_except,
-@@ -4312,108 +4296,6 @@ ngx_http_core_server_name(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -4650,112 +4634,6 @@ ngx_http_core_server_name(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  
@@ -115,12 +114,16 @@ index c7463dcd..e2e45931 100644
 -    ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
 -    sc.variables = n;
 -
+-    if (alias
+-        && (clcf->predicate
 -#if (NGX_PCRE)
--    if (alias && clcf->regex) {
+-            || clcf->regex
+-#endif
+-           ))
+-    {
 -        clcf->alias = NGX_MAX_SIZE_T_VALUE;
 -        n = 1;
 -    }
--#endif
 -
 -    if (n) {
 -        sc.cf = cf;
