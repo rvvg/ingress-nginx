@@ -11,6 +11,9 @@ NGINX mainline version that OpenResty is based on: upstream used 1.21.6, 1.25.x 
 
 ## Versions
 
+Kubernetes 1.36 (v1.36.4) and 1.37 (v1.37.0) are added to the CI matrix on top of the upstream 1.31–1.35: the full
+kind e2e suite (regular and chroot) and the chart tests pass on every version in the range.
+
 | Component                 | Upstream v1.15.1 | This build            |
 | ------------------------- | ---------------- | --------------------- |
 | Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.8  |
@@ -30,6 +33,7 @@ NGINX mainline version that OpenResty is based on: upstream used 1.21.6, 1.25.x 
 | lua-resty-dns / string / memcached / redis | v0.23 / v0.16 / v0.17 / v0.31 | v0.24 / v0.19 / v0.18 / v0.34 |
 | njs                       | 0.9.0            | 1.0.2                 |
 | Alpine / OpenSSL          | 3.23.3 / 3.5.x   | 3.23.3 / 3.5.9        |
+| Kubernetes (e2e-tested)   | 1.31–1.35        | 1.31–1.37             |
 
 Module versions are taken from OpenResty v1.31.8.1 (`util/mirror-tarballs`). OpenResty publishes the Lua modules for this
 release line only as `rc` tags. All other modules (ModSecurity, OWASP CRS, geoip2, brotli, OpenTelemetry, mimalloc, ...)
