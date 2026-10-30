@@ -1,7 +1,4 @@
 # Artifact Hub repository metadata for oci://ghcr.io/rvvg/charts/ingress-nginx.
-# Pushed to the "artifacthub.io" tag of the chart by .github/workflows/release-ghcr.yaml.
+# Pushed to the "artifacthub.io" tag of the chart by .github/workflows/artifacthub-ghcr.yaml.
 # https://artifacthub.io/docs/topics/repositories/helm-charts/#oci-support
-repositoryID: REPOSITORY_ID
-owners:
-  - name: rvvg
-    email: OWNER_EMAIL
+repositoryID: 92d5e7fc-733c-41db-bef6-e19ee1af2b14
