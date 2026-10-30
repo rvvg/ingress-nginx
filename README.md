@@ -99,6 +99,49 @@ helm upgrade --install ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
   --namespace ingress-nginx --create-namespace
 ```
 
+### Migrating from kubernetes/ingress-nginx
+
+Keep the upstream chart `4.15.1` and override only the controller image. The digests point to the multi-arch image
+indexes, so every node pulls its own architecture:
+
+```yaml
+controller:
+  image:
+    registry: ghcr.io/rvvg
+    image: ingress-nginx/controller
+    tag: v1.15.1-nginx-1.31.8
+    digest: sha256:ec8b8499592f6d04dc8a50136e98c60a2fdd0245ac536cc6b579af4f21c1772d
+    digestChroot: sha256:c74cc97ea0b03970cefec0e76418020685f68656d34cb91c25218482fce391b6
+```
+
+```console
+helm upgrade ingress-nginx ingress-nginx/ingress-nginx --version 4.15.1 \
+  --namespace ingress-nginx --reuse-values -f ghcr-image.yaml
+```
+
+- Set `digest` and `digestChroot` together with `tag`; otherwise the chart appends the upstream digest to the new tag
+  and the old image is deployed. Use empty strings to deploy by tag only.
+- `controller.image.repository`, if set, overrides `registry` and `image`.
+- No `imagePullSecrets` are needed: the packages are public.
+
+### Verifying images
+
+Images and the chart are signed with keyless [cosign](https://github.com/sigstore/cosign) from the release workflow,
+and every platform image has an SPDX SBOM attestation:
+
+```console
+cosign verify ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8 \
+  --certificate-identity-regexp '^https://github.com/rvvg/ingress-nginx/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+cosign verify-attestation --type spdxjson \
+  ghcr.io/rvvg/ingress-nginx/controller@sha256:1a0bda67c2bcf9eb4d067823b6453a1d076c1ff21b60a857ad1e53159c41769b \
+  --certificate-identity-regexp '^https://github.com/rvvg/ingress-nginx/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The second digest is the `linux/amd64` image; `docker buildx imagetools inspect` lists the digests per platform.
+
 ## Build
 
 Locally (Docker, single architecture):

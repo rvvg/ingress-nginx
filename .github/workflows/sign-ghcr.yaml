@@ -1,0 +1,95 @@
+name: Sign (GHCR)
+
+# Signs published images and the Helm chart with keyless cosign (GitHub OIDC) and attaches an SPDX SBOM
+# attestation to every platform image. Called by Release (GHCR); can be run by hand for an existing release.
+#
+# Verify:
+#   cosign verify ghcr.io/<owner>/ingress-nginx/controller:<tag> \
+#     --certificate-identity-regexp '^https://github.com/<owner>/ingress-nginx/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+on:
+  workflow_call:
+    inputs:
+      base-tag:
+        required: true
+        type: string
+      controller-tag:
+        required: true
+        type: string
+      chart-version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      base-tag:
+        description: 'NGINX base image tag (e.g. v2.3.0)'
+        required: true
+        type: string
+      controller-tag:
+        description: 'Controller image tag (e.g. v1.15.1-nginx-1.31.8)'
+        required: true
+        type: string
+      chart-version:
+        description: 'Helm chart version (e.g. 4.15.1-nginx-1.31.8)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    name: Sign and attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      BASE_TAG: ${{ inputs.base-tag }}
+      CONTROLLER_TAG: ${{ inputs.controller-tag }}
+      CHART_VERSION: ${{ inputs.chart-version }}
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign images and attach SBOMs
+        run: |
+          registry="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ingress-nginx"
+          for ref in "${registry}/nginx:${BASE_TAG}" \
+                     "${registry}/controller:${CONTROLLER_TAG}" \
+                     "${registry}/controller-chroot:${CONTROLLER_TAG}"; do
+            index="${ref%:*}@$(docker buildx imagetools inspect "${ref}" --format '{{json .Manifest}}' | jq -r .digest)"
+            echo "::group::${index}"
+            # --recursive also signs every platform manifest in the index.
+            cosign sign --yes --recursive "${index}"
+            docker buildx imagetools inspect "${ref}" --format '{{json .Manifest}}' \
+              | jq -r '.manifests[] | select(.platform.os == "linux") | "\(.platform.architecture) \(.digest)"' \
+              | while read -r arch digest; do
+                  image="${ref%:*}@${digest}"
+                  syft scan "registry:${image}" --output "spdx-json=/tmp/sbom-${arch}.spdx.json"
+                  cosign attest --yes --type spdxjson --predicate "/tmp/sbom-${arch}.spdx.json" "${image}"
+                done
+            echo "::endgroup::"
+          done
+
+      - name: Sign Helm chart
+        run: |
+          chart="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts/ingress-nginx"
+          # imagetools cannot parse a chart manifest, but its raw bytes hash to the digest.
+          digest="sha256:$(docker buildx imagetools inspect --raw "${chart}:${CHART_VERSION}" | sha256sum | cut -d' ' -f1)"
+          cosign sign --yes "${chart}@${digest}"
