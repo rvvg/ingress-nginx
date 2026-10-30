@@ -197,7 +197,7 @@ func (s *statusSync) runningAddresses() ([]v1.IngressLoadBalancerIngress, error)
 
 	// get information about all the pods running the ingress controller
 	pods, err := s.Client.CoreV1().Pods(k8s.IngressPodDetails.Namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(podSelectorLabels()).String(),
+		LabelSelector: labels.SelectorFromSet(podSelectorLabels(false)).String(),
 	})
 	if err != nil {
 		return nil, err
@@ -236,23 +236,18 @@ func (s *statusSync) runningAddresses() ([]v1.IngressLoadBalancerIngress, error)
 	return addrs, nil
 }
 
-// podSelectorLabels returns the labels of this pod that select the whole set of Ingress controller pods.
-// As a standard, app.kubernetes.io are "reserved well-known" labels.
-// In our case, we add those labels as identifiers of the Ingress
-// deployment in this namespace, so we can select it as a set of Ingress instances.
-// As those labels are also generated as part of a HELM deployment, we can be "safe" they
-// cover 95% of the cases.
-//
-// Labels that differ between pods of the same set are dropped: the revision labels set by the Deployment and
-// DaemonSet controllers, and the topology labels copied from the node by the PodTopologyLabelsAdmission plugin
-// (enabled by default since Kubernetes v1.35). Otherwise only pods of the same revision and zone are selected.
-func podSelectorLabels() map[string]string {
+// podSelectorLabels returns the labels of this pod used to select the set of Ingress controller pods.
+// The topology labels are always dropped: since Kubernetes v1.35 the PodTopologyLabels admission plugin copies
+// topology.kubernetes.io/zone and /region from the node to every pod, so they differ between pods of the same set.
+// With withoutRevision the revision labels set by the Deployment and DaemonSet controllers are dropped as well,
+// which also selects the pods of other revisions during a rollout.
+func podSelectorLabels(withoutRevision bool) map[string]string {
 	podLabel := make(map[string]string)
 	for k, v := range k8s.IngressPodDetails.Labels {
-		if k == "pod-template-hash" || k == "controller-revision-hash" || k == "pod-template-generation" {
+		if strings.HasPrefix(k, "topology.kubernetes.io/") {
 			continue
 		}
-		if strings.HasPrefix(k, "topology.kubernetes.io/") {
+		if withoutRevision && (k == "pod-template-hash" || k == "controller-revision-hash" || k == "pod-template-generation") {
 			continue
 		}
 		podLabel[k] = v
@@ -261,8 +256,13 @@ func podSelectorLabels() map[string]string {
 }
 
 func (s *statusSync) isRunningMultiplePods() bool {
+	// As a standard, app.kubernetes.io are "reserved well-known" labels.
+	// In our case, we add those labels as identifiers of the Ingress
+	// deployment in this namespace, so we can select it as a set of Ingress instances.
+	// As those labels are also generated as part of a HELM deployment, we can be "safe" they
+	// cover 95% of the cases
 	pods, err := s.Client.CoreV1().Pods(k8s.IngressPodDetails.Namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(podSelectorLabels()).String(),
+		LabelSelector: labels.SelectorFromSet(podSelectorLabels(true)).String(),
 	})
 	if err != nil {
 		return false
