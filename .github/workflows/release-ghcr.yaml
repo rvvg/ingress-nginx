@@ -336,3 +336,42 @@ jobs:
             echo "helm upgrade --install ingress-nginx oci://${CHART_REGISTRY}/ingress-nginx --version ${CHART_VERSION} -n ingress-nginx --create-namespace"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  sign:
+    name: Sign
+    needs: [meta, chart]
+    if: ${{ !failure() && !cancelled() }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/sign-ghcr.yaml
+    with:
+      base-tag: ${{ needs.meta.outputs.base-tag }}
+      controller-tag: ${{ needs.meta.outputs.controller-tag }}
+      chart-version: ${{ needs.meta.outputs.chart-version }}
+
+  github-release:
+    name: GitHub release
+    needs: [meta, controller-manifest, sign]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REGISTRY: ${{ needs.meta.outputs.registry }}
+          CHART_REGISTRY: ${{ needs.meta.outputs.chart-registry }}
+          BASE_TAG: ${{ needs.meta.outputs.base-tag }}
+          CONTROLLER_TAG: ${{ needs.meta.outputs.controller-tag }}
+          CHART_VERSION: ${{ needs.meta.outputs.chart-version }}
+          DIGEST: ${{ needs.controller-manifest.outputs.digest }}
+          DIGEST_CHROOT: ${{ needs.controller-manifest.outputs.digest-chroot }}
+        run: |
+          hack/ghcr-release-notes.sh > /tmp/notes.md
+          gh release create "${CONTROLLER_TAG}" --target "${GITHUB_SHA}" --title "${CONTROLLER_TAG}" --notes-file /tmp/notes.md --latest
