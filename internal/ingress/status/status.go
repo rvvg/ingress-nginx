@@ -197,7 +197,7 @@ func (s *statusSync) runningAddresses() ([]v1.IngressLoadBalancerIngress, error)
 
 	// get information about all the pods running the ingress controller
 	pods, err := s.Client.CoreV1().Pods(k8s.IngressPodDetails.Namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(k8s.IngressPodDetails.Labels).String(),
+		LabelSelector: labels.SelectorFromSet(podSelectorLabels()).String(),
 	})
 	if err != nil {
 		return nil, err
@@ -236,21 +236,33 @@ func (s *statusSync) runningAddresses() ([]v1.IngressLoadBalancerIngress, error)
 	return addrs, nil
 }
 
-func (s *statusSync) isRunningMultiplePods() bool {
-	// As a standard, app.kubernetes.io are "reserved well-known" labels.
-	// In our case, we add those labels as identifiers of the Ingress
-	// deployment in this namespace, so we can select it as a set of Ingress instances.
-	// As those labels are also generated as part of a HELM deployment, we can be "safe" they
-	// cover 95% of the cases
+// podSelectorLabels returns the labels of this pod that select the whole set of Ingress controller pods.
+// As a standard, app.kubernetes.io are "reserved well-known" labels.
+// In our case, we add those labels as identifiers of the Ingress
+// deployment in this namespace, so we can select it as a set of Ingress instances.
+// As those labels are also generated as part of a HELM deployment, we can be "safe" they
+// cover 95% of the cases.
+//
+// Labels that differ between pods of the same set are dropped: the revision labels set by the Deployment and
+// DaemonSet controllers, and the topology labels copied from the node by the PodTopologyLabelsAdmission plugin
+// (enabled by default since Kubernetes v1.35). Otherwise only pods of the same revision and zone are selected.
+func podSelectorLabels() map[string]string {
 	podLabel := make(map[string]string)
 	for k, v := range k8s.IngressPodDetails.Labels {
-		if k != "pod-template-hash" && k != "controller-revision-hash" && k != "pod-template-generation" {
-			podLabel[k] = v
+		if k == "pod-template-hash" || k == "controller-revision-hash" || k == "pod-template-generation" {
+			continue
 		}
+		if strings.HasPrefix(k, "topology.kubernetes.io/") {
+			continue
+		}
+		podLabel[k] = v
 	}
+	return podLabel
+}
 
+func (s *statusSync) isRunningMultiplePods() bool {
 	pods, err := s.Client.CoreV1().Pods(k8s.IngressPodDetails.Namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(podLabel).String(),
+		LabelSelector: labels.SelectorFromSet(podSelectorLabels()).String(),
 	})
 	if err != nil {
 		return false
