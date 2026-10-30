@@ -25,12 +25,35 @@ set -o pipefail
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 NGINX_VERSION=$(sed -n 's/^export NGINX_VERSION=//p' "${ROOT}/images/nginx/rootfs/build.sh")
 REPO_URL="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-rvvg/ingress-nginx}"
+# Optional: CHANGES (Markdown list) and PREV_TAG (previous release tag) for the "Changes" section.
+CHANGES="${CHANGES:-}"
+PREV_TAG="${PREV_TAG:-}"
 
 cat <<EOF
 ingress-nginx controller \`${CONTROLLER_TAG}\` built on NGINX ${NGINX_VERSION} (mainline) with the OpenResty patch set.
 Drop-in replacement for the retired \`kubernetes/ingress-nginx\` \`controller-${CONTROLLER_TAG%%-nginx-*}\` images. See the
 [README](${REPO_URL}#readme) for the patch list and behavior changes.
 
+EOF
+
+if [[ -n "${CHANGES}" || -n "${PREV_TAG}" ]]; then
+  echo "## Changes${PREV_TAG:+ since ${PREV_TAG}}"
+  echo
+  if [[ -n "${CHANGES}" ]]; then
+    echo "${CHANGES}"
+  else
+    # CI and documentation commits do not change the published artifacts.
+    commits=$(git -C "${ROOT}" log --no-merges --format='- %s (%h)' "${PREV_TAG}..HEAD" | grep -vE '^- (CI|Docs):' || true)
+    echo "${commits:-- Rebuild without code changes.}"
+  fi
+  if [[ -n "${PREV_TAG}" ]]; then
+    echo
+    echo "Full changelog: ${REPO_URL}/compare/${PREV_TAG}...${CONTROLLER_TAG}"
+  fi
+  echo
+fi
+
+cat <<EOF
 ## Artifacts
 
 All images are multi-arch (\`linux/amd64\`, \`linux/arm64\`), signed with keyless cosign and carry SPDX SBOM attestations.
