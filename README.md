@@ -4,7 +4,7 @@ This repository is a maintained build of [kubernetes/ingress-nginx](https://gith
 `controller-v1.15.1` / chart `4.15.1`. The upstream project is retired and archived (see [below](#retiring)).
 This repository is not affiliated with the Kubernetes project.
 
-The controller code is unchanged from upstream except for a single template change (see [Behavior changes](#behavior-changes)).
+The controller code is unchanged from upstream except for a template change and an Ingress status fix (see [Behavior changes](#behavior-changes)).
 The NGINX base image is updated to NGINX 1.31.8 (mainline) with the patch set and Lua modules from
 [OpenResty v1.31.8.1](https://github.com/openresty/openresty/tree/v1.31.8.1). As in upstream, the build tracks the
 NGINX mainline version that OpenResty is based on: upstream used 1.21.6, 1.25.x and 1.27.1, all of which were mainline.
@@ -64,6 +64,16 @@ Template ([`rootfs/etc/nginx/template/nginx.tmpl`](rootfs/etc/nginx/template/ngi
 
 - `upstream upstream_balancer` emits `keepalive 0;` when `upstream-keepalive-connections` is `0`. Since NGINX 1.29.7, upstream
   keepalive is enabled by default (`keepalive 32 local`). Without this line, setting the option to `0` would no longer disable it.
+
+Ingress status ([`internal/ingress/status/status.go`](internal/ingress/status/status.go)):
+
+- Without `--publish-service` / `--publish-status-address`, the leader publishes the node addresses of all ready controller
+  pods. It selected these pods by all of its own labels. Since Kubernetes 1.35, the `PodTopologyLabels` admission plugin
+  copies `topology.kubernetes.io/zone` and `topology.kubernetes.io/region` from the node to every pod, so only pods in the
+  leader's zone matched and the status showed a subset of the addresses (typically only the leader's node with
+  `hostNetwork`). The selector now ignores `topology.kubernetes.io/*` and the revision labels (`pod-template-hash`,
+  `controller-revision-hash`, `pod-template-generation`), as the multiple-pods check already did for the revision labels.
+  During a rollout, ready pods of both revisions are now published.
 
 NGINX 1.27.1 → 1.31.8 changes that can affect traffic (full list: [CHANGES](https://nginx.org/en/CHANGES)):
 

@@ -740,3 +740,58 @@ func TestIngressSliceEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestRunningAddressesWithPodsInDifferentZones(t *testing.T) {
+	controllerPod := func(name, node, zone, hash string) *apiv1.Pod {
+		return &apiv1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: apiv1.NamespaceDefault,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":      "ingress-nginx",
+					"pod-template-hash":           hash,
+					"topology.kubernetes.io/zone": zone,
+				},
+			},
+			Spec: apiv1.PodSpec{NodeName: node},
+			Status: apiv1.PodStatus{
+				Phase:      apiv1.PodRunning,
+				Conditions: []apiv1.PodCondition{{Type: apiv1.PodReady, Status: apiv1.ConditionTrue}},
+			},
+		}
+	}
+	node := func(name, ip string) *apiv1.Node {
+		return &apiv1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Status: apiv1.NodeStatus{
+				Addresses: []apiv1.NodeAddress{{Type: apiv1.NodeExternalIP, Address: ip}},
+			},
+		}
+	}
+
+	leader := controllerPod("leader", "node-a", "zone-a", "rev1")
+	fk := statusSync{
+		Config: Config{
+			Client: testclient.NewSimpleClientset(
+				leader,
+				controllerPod("other-zone", "node-b", "zone-b", "rev1"),
+				controllerPod("other-revision", "node-c", "zone-a", "rev2"),
+				node("node-a", "11.0.0.1"),
+				node("node-b", "11.0.0.2"),
+				node("node-c", "11.0.0.3"),
+			),
+		},
+	}
+	k8s.IngressPodDetails = &k8s.PodInfo{ObjectMeta: leader.ObjectMeta}
+
+	r, err := fk.runningAddresses()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(r) != 3 {
+		t.Fatalf("returned %v but expected the addresses of all 3 nodes", r)
+	}
+	if !fk.isRunningMultiplePods() {
+		t.Errorf("expected multiple pods to be detected")
+	}
+}
