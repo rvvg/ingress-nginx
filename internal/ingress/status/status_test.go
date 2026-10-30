@@ -788,8 +788,9 @@ func TestRunningAddressesWithPodsInDifferentZones(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(r) != 3 {
-		t.Fatalf("returned %v but expected the addresses of all 3 nodes", r)
+	// The pod of the other revision is left out, as before the topology labels were added.
+	if len(r) != 2 {
+		t.Fatalf("returned %v but expected the addresses of node-a and node-b", r)
 	}
 	if !fk.isRunningMultiplePods() {
 		t.Errorf("expected multiple pods to be detected")

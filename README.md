@@ -71,9 +71,8 @@ Ingress status ([`internal/ingress/status/status.go`](internal/ingress/status/st
   pods. It selected these pods by all of its own labels. Since Kubernetes 1.35, the `PodTopologyLabels` admission plugin
   copies `topology.kubernetes.io/zone` and `topology.kubernetes.io/region` from the node to every pod, so only pods in the
   leader's zone matched and the status showed a subset of the addresses (typically only the leader's node with
-  `hostNetwork`). The selector now ignores `topology.kubernetes.io/*` and the revision labels (`pod-template-hash`,
-  `controller-revision-hash`, `pod-template-generation`), as the multiple-pods check already did for the revision labels.
-  During a rollout, ready pods of both revisions are now published.
+  `hostNetwork`). The selector now ignores `topology.kubernetes.io/*`. Revision labels are still matched as upstream, so
+  during a rollout only pods of the leader's revision are published.
 
 NGINX 1.27.1 → 1.31.8 changes that can affect traffic (full list: [CHANGES](https://nginx.org/en/CHANGES)):
 
