@@ -318,6 +318,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # artifacthub.io/changes lists the commits since the previous release tag.
+          fetch-depth: 0
 
       - name: Set up Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
@@ -337,15 +340,14 @@ jobs:
           git diff charts/ingress-nginx/values.yaml
 
       - name: Set chart metadata
+        env:
+          CHANGES: ${{ inputs.changes }}
         run: |
           # Chart.yaml in the repository describes the upstream project; the published chart points to this one.
           export REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           export OWNER="${GITHUB_REPOSITORY_OWNER}"
           export NGINX_VERSION="$(sed -n 's/^export NGINX_VERSION=//p' images/nginx/rootfs/build.sh)"
-          export UPSTREAM_TAG="controller-${CONTROLLER_TAG%%-nginx-*}"
-          export CHANGES="- kind: changed
-            description: ${UPSTREAM_TAG} rebuilt on NGINX ${NGINX_VERSION} with the OpenResty patch set
-          "
+          export CHANGES="$(hack/ghcr-release-changes.sh | python3 -I hack/artifacthub-changes.py)"
           export IMAGES="- name: controller
             image: ${REGISTRY}/controller:${CONTROLLER_TAG}@${DIGEST}
             platforms: [linux/amd64, linux/arm64]
@@ -438,7 +440,6 @@ jobs:
           DIGEST: ${{ needs.controller-manifest.outputs.digest }}
           DIGEST_CHROOT: ${{ needs.controller-manifest.outputs.digest-chroot }}
         run: |
-          export PREV_TAG="$(git tag --merged HEAD --sort=-creatordate --list 'v*-nginx-*' | grep -vxF "${CONTROLLER_TAG}" | head -1)"
           hack/ghcr-release-notes.sh > /tmp/notes.md
           cat /tmp/notes.md
           if gh release view "${CONTROLLER_TAG}" >/dev/null 2>&1; then

@@ -25,9 +25,9 @@ set -o pipefail
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 NGINX_VERSION=$(sed -n 's/^export NGINX_VERSION=//p' "${ROOT}/images/nginx/rootfs/build.sh")
 REPO_URL="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-rvvg/ingress-nginx}"
-# Optional: CHANGES (Markdown list) and PREV_TAG (previous release tag) for the "Changes" section.
-CHANGES="${CHANGES:-}"
-PREV_TAG="${PREV_TAG:-}"
+# The "Changes" section comes from hack/ghcr-release-changes.sh (CHANGES or commits since the previous release).
+PREV_TAG="$("${ROOT}/hack/ghcr-release-changes.sh" --prev-tag)"
+export PREV_TAG
 
 cat <<EOF
 ingress-nginx controller \`${CONTROLLER_TAG}\` built on NGINX ${NGINX_VERSION} (mainline) with the OpenResty patch set.
@@ -36,22 +36,14 @@ Drop-in replacement for the retired \`kubernetes/ingress-nginx\` \`controller-${
 
 EOF
 
-if [[ -n "${CHANGES}" || -n "${PREV_TAG}" ]]; then
-  echo "## Changes${PREV_TAG:+ since ${PREV_TAG}}"
+echo "## Changes${PREV_TAG:+ since ${PREV_TAG}}"
+echo
+"${ROOT}/hack/ghcr-release-changes.sh"
+if [[ -n "${PREV_TAG}" ]]; then
   echo
-  if [[ -n "${CHANGES}" ]]; then
-    echo "${CHANGES}"
-  else
-    # CI and documentation commits do not change the published artifacts.
-    commits=$(git -C "${ROOT}" log --no-merges --format='- %s (%h)' "${PREV_TAG}..HEAD" | grep -vE '^- (CI|Docs):' || true)
-    echo "${commits:-- Rebuild without code changes.}"
-  fi
-  if [[ -n "${PREV_TAG}" ]]; then
-    echo
-    echo "Full changelog: ${REPO_URL}/compare/${PREV_TAG}...${CONTROLLER_TAG}"
-  fi
-  echo
+  echo "Full changelog: ${REPO_URL}/compare/${PREV_TAG}...${CONTROLLER_TAG}"
 fi
+echo
 
 cat <<EOF
 ## Artifacts
