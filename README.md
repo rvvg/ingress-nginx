@@ -255,6 +255,7 @@ CI:
 - Release: run the `Release (GHCR)` workflow manually from `main` (`gh workflow run release-ghcr.yaml`). It builds on native
   amd64 and arm64 runners and reuses an existing base image tag unless `rebuild-base` is set. It refuses to overwrite an existing
   controller tag unless `force` is set. Use the `revision` input to publish `-rN` builds without an NGINX version change.
+  `chart-only` republishes just the chart (same version) and the release notes for already published images.
 
 Versions are derived from the repository: `images/nginx/TAG` for the base image, and `Chart.yaml` `appVersion` / `version`
 plus `-nginx-<NGINX_VERSION from build.sh>` for the controller and the chart.

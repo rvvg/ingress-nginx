@@ -27,6 +27,11 @@ on:
         required: false
         type: boolean
         default: false
+      chart-only:
+        description: 'Republish only the Helm chart (and release notes) for already published images'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -90,7 +95,14 @@ jobs:
           CONTROLLER_TAG: ${{ steps.versions.outputs.controller-tag }}
           REBUILD_BASE: ${{ inputs.rebuild-base }}
           FORCE: ${{ inputs.force }}
+          CHART_ONLY: ${{ inputs.chart-only }}
         run: |
+          if [[ "${CHART_ONLY}" == "true" ]]; then
+            docker buildx imagetools inspect "${REGISTRY}/controller:${CONTROLLER_TAG}" >/dev/null \
+              || { echo "::error::chart-only needs a published ${REGISTRY}/controller:${CONTROLLER_TAG}"; exit 1; }
+            echo "build-base=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "${REBUILD_BASE}" != "true" ]] && docker buildx imagetools inspect "${REGISTRY}/nginx:${BASE_TAG}" >/dev/null 2>&1; then
             echo "Base image ${REGISTRY}/nginx:${BASE_TAG} already exists, reusing it."
             echo "build-base=false" >> "$GITHUB_OUTPUT"
@@ -190,7 +202,7 @@ jobs:
   controller:
     name: Controller (${{ matrix.arch }})
     needs: [meta, base-manifest]
-    if: ${{ !failure() && !cancelled() }}
+    if: ${{ !failure() && !cancelled() && !inputs.chart-only }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     permissions:
@@ -275,7 +287,9 @@ jobs:
         run: |
           for image in controller controller-chroot; do
             ref="${REGISTRY}/${image}:${CONTROLLER_TAG}"
-            docker buildx imagetools create -t "${ref}" "${ref}-amd64" "${ref}-arm64"
+            if [[ "${{ inputs.chart-only }}" != "true" ]]; then
+              docker buildx imagetools create -t "${ref}" "${ref}-amd64" "${ref}-arm64"
+            fi
             digest="$(docker buildx imagetools inspect "${ref}" --format '{{json .Manifest}}' | jq -r .digest)"
             echo "${ref}@${digest}"
             echo "${image}=${digest}" >> "$GITHUB_OUTPUT"
@@ -416,4 +430,8 @@ jobs:
           DIGEST_CHROOT: ${{ needs.controller-manifest.outputs.digest-chroot }}
         run: |
           hack/ghcr-release-notes.sh > /tmp/notes.md
-          gh release create "${CONTROLLER_TAG}" --target "${GITHUB_SHA}" --title "${CONTROLLER_TAG}" --notes-file /tmp/notes.md --latest
+          if gh release view "${CONTROLLER_TAG}" >/dev/null 2>&1; then
+            gh release edit "${CONTROLLER_TAG}" --notes-file /tmp/notes.md
+          else
+            gh release create "${CONTROLLER_TAG}" --target "${GITHUB_SHA}" --title "${CONTROLLER_TAG}" --notes-file /tmp/notes.md --latest
+          fi
