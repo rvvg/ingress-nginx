@@ -93,15 +93,109 @@ The published chart pins `controller.image.{registry,tag,digest,digestChroot}` t
 (`kube-webhook-certgen`, `defaultbackend`) still default to `registry.k8s.io`. `values.yaml` in this repository keeps
 the upstream defaults, so the chart unit tests still pass.
 
+## Installation
+
+The chart is an OCI artifact in GHCR: there is no `helm repo add` step, the chart is referenced as
+`oci://ghcr.io/rvvg/charts/ingress-nginx` directly. Requires Helm 3.8+. The packages are public, so no
+`helm registry login` or `imagePullSecrets` are needed. Always pass `--version`: OCI charts have no index, and the
+version is required to pick a release.
+
+Inspect the chart:
+
+```console
+helm show chart  oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8
+helm show values oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8 > values.yaml
+```
+
+Install or upgrade, optionally with your own values (the controller image is already set by the chart):
+
 ```console
 helm upgrade --install ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
   --version 4.15.1-nginx-1.31.8 \
-  --namespace ingress-nginx --create-namespace
+  --namespace ingress-nginx --create-namespace \
+  -f values.yaml
 ```
 
-### Migrating from kubernetes/ingress-nginx
+Check the deployed image:
 
-Keep the upstream chart `4.15.1` and override only the controller image. The digests point to the multi-arch image
+```console
+kubectl -n ingress-nginx get deploy ingress-nginx-controller \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+Download the chart package, e.g. for an air-gapped install or to vendor it:
+
+```console
+helm pull oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8   # ingress-nginx-4.15.1-nginx-1.31.8.tgz
+```
+
+As a dependency of an umbrella chart (`Chart.yaml`), followed by `helm dependency update`:
+
+```yaml
+dependencies:
+  - name: ingress-nginx
+    version: 4.15.1-nginx-1.31.8
+    repository: oci://ghcr.io/rvvg/charts
+```
+
+Argo CD `Application` (Argo CD takes the OCI registry without the `oci://` scheme and needs `enableOCI: true` in
+the repository secret when the repository is declared explicitly):
+
+```yaml
+spec:
+  source:
+    repoURL: ghcr.io/rvvg/charts
+    chart: ingress-nginx
+    targetRevision: 4.15.1-nginx-1.31.8
+    helm:
+      valuesObject: {}
+```
+
+Flux `HelmRepository` + `HelmRelease`:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: ingress-nginx-ghcr
+  namespace: flux-system
+spec:
+  type: oci
+  url: oci://ghcr.io/rvvg/charts
+  interval: 1h
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: ingress-nginx
+      version: 4.15.1-nginx-1.31.8
+      sourceRef:
+        kind: HelmRepository
+        name: ingress-nginx-ghcr
+        namespace: flux-system
+```
+
+Switching an existing release installed from `https://kubernetes.github.io/ingress-nginx` keeps the release name and
+values; Helm only needs the new chart reference:
+
+```console
+helm upgrade ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
+  --version 4.15.1-nginx-1.31.8 --namespace ingress-nginx --reuse-values
+```
+
+With `--reuse-values`, image overrides from the previous release win over the chart defaults: remove any
+`controller.image.*` overrides first, or the old image keeps running. Uninstall with
+`helm uninstall ingress-nginx -n ingress-nginx`.
+
+### Using the upstream chart
+
+To keep the upstream chart `4.15.1`, override only the controller image. The digests point to the multi-arch image
 indexes, so every node pulls its own architecture:
 
 ```yaml
