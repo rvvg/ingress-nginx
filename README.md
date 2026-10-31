@@ -18,7 +18,7 @@ kind e2e suite (regular and chroot) and the chart tests pass on every version in
 | ------------------------- | ---------------- | ---------------------- |
 | Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.8-r2 |
 | Helm chart version        | 4.15.1           | 4.15.1-nginx-1.31.8-r2  |
-| NGINX base image tag      | v2.2.8           | v2.3.0                |
+| NGINX base image tag      | v2.2.8           | v2.3.1                |
 | NGINX                     | 1.27.1           | 1.31.8                |
 | OpenResty patch set       | 1.27.1.2         | 1.31.8.1              |
 | lua-nginx-module          | v0.10.28         | v0.10.32rc7           |
@@ -32,7 +32,7 @@ kind e2e suite (regular and chroot) and the chart tests pass on every version in
 | lua-cjson                 | 2.1.0.14         | 2.1.0.20              |
 | lua-resty-dns / string / memcached / redis | v0.23 / v0.16 / v0.17 / v0.31 | v0.24 / v0.19 / v0.18 / v0.34 |
 | njs                       | 0.9.0            | 1.0.2                 |
-| Alpine / OpenSSL          | 3.23.3 / 3.5.x   | 3.23.3 / 3.5.9        |
+| Alpine / OpenSSL          | 3.23.3 / 3.5.x   | 3.23.7 / 3.5.9        |
 | Kubernetes (e2e-tested)   | 1.31–1.35        | 1.31–1.37             |
 
 Module versions are taken from OpenResty v1.31.8.1 (`util/mirror-tarballs`). OpenResty publishes the Lua modules for this
@@ -93,7 +93,7 @@ Published by [`.github/workflows/release-ghcr.yaml`](.github/workflows/release-g
 
 | Artifact          | Reference                                                    |
 | ----------------- | ------------------------------------------------------------ |
-| NGINX base image  | `ghcr.io/rvvg/ingress-nginx/nginx:v2.3.0`                    |
+| NGINX base image  | `ghcr.io/rvvg/ingress-nginx/nginx:v2.3.1`                    |
 | Controller        | `ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8-r2` |
 | Controller chroot | `ghcr.io/rvvg/ingress-nginx/controller-chroot:v1.15.1-nginx-1.31.8-r2` |
 | Helm chart (OCI)  | `oci://ghcr.io/rvvg/charts/ingress-nginx`, version `4.15.1-nginx-1.31.8-r2` |
@@ -251,10 +251,10 @@ Locally (Docker, single architecture):
 
 ```console
 # NGINX base image
-docker build --platform linux/amd64 -t <registry>/nginx:v2.3.0 images/nginx/rootfs
+docker build --platform linux/amd64 -t <registry>/nginx:v2.3.1 images/nginx/rootfs
 
 # Controller on top of it
-make build image image-chroot ARCH=amd64 TAG=<tag> REGISTRY=<registry> BASE_IMAGE=<registry>/nginx:v2.3.0
+make build image image-chroot ARCH=amd64 TAG=<tag> REGISTRY=<registry> BASE_IMAGE=<registry>/nginx:v2.3.1
 ```
 
 CI:
