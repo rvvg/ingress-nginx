@@ -16,8 +16,8 @@ kind e2e suite (regular and chroot) and the chart tests pass on every version in
 
 | Component                 | Upstream v1.15.1 | This build             |
 | ------------------------- | ---------------- | ---------------------- |
-| Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.8-r2 |
-| Helm chart version        | 4.15.1           | 4.15.1-nginx-1.31.8-r2  |
+| Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.8-r3 |
+| Helm chart version        | 4.15.1           | 4.15.1-nginx-1.31.8-r3  |
 | NGINX base image tag      | v2.2.8           | v2.3.1                |
 | NGINX                     | 1.27.1           | 1.31.8                |
 | OpenResty patch set       | 1.27.1.2         | 1.31.8.1              |
@@ -94,9 +94,9 @@ Published by [`.github/workflows/release-ghcr.yaml`](.github/workflows/release-g
 | Artifact          | Reference                                                    |
 | ----------------- | ------------------------------------------------------------ |
 | NGINX base image  | `ghcr.io/rvvg/ingress-nginx/nginx:v2.3.1`                    |
-| Controller        | `ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8-r2` |
-| Controller chroot | `ghcr.io/rvvg/ingress-nginx/controller-chroot:v1.15.1-nginx-1.31.8-r2` |
-| Helm chart (OCI)  | `oci://ghcr.io/rvvg/charts/ingress-nginx`, version `4.15.1-nginx-1.31.8-r2` |
+| Controller        | `ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8-r3` |
+| Controller chroot | `ghcr.io/rvvg/ingress-nginx/controller-chroot:v1.15.1-nginx-1.31.8-r3` |
+| Helm chart (OCI)  | `oci://ghcr.io/rvvg/charts/ingress-nginx`, version `4.15.1-nginx-1.31.8-r3` |
 
 The published chart pins `controller.image.{registry,tag,digest,digestChroot}` to the images above. The other images
 (`kube-webhook-certgen`, `defaultbackend`) still default to `registry.k8s.io`. `values.yaml` in this repository keeps
@@ -112,15 +112,15 @@ version is required to pick a release.
 Inspect the chart:
 
 ```console
-helm show chart  oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r2
-helm show values oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r2 > values.yaml
+helm show chart  oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r3
+helm show values oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r3 > values.yaml
 ```
 
 Install or upgrade, optionally with your own values (the controller image is already set by the chart):
 
 ```console
 helm upgrade --install ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
-  --version 4.15.1-nginx-1.31.8-r2 \
+  --version 4.15.1-nginx-1.31.8-r3 \
   --namespace ingress-nginx --create-namespace \
   -f values.yaml
 ```
@@ -135,7 +135,7 @@ kubectl -n ingress-nginx get deploy ingress-nginx-controller \
 Download the chart package, e.g. for an air-gapped install or to vendor it:
 
 ```console
-helm pull oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r2   # ingress-nginx-4.15.1-nginx-1.31.8-r2.tgz
+helm pull oci://ghcr.io/rvvg/charts/ingress-nginx --version 4.15.1-nginx-1.31.8-r3   # ingress-nginx-4.15.1-nginx-1.31.8-r3.tgz
 ```
 
 As a dependency of an umbrella chart (`Chart.yaml`), followed by `helm dependency update`:
@@ -143,7 +143,7 @@ As a dependency of an umbrella chart (`Chart.yaml`), followed by `helm dependenc
 ```yaml
 dependencies:
   - name: ingress-nginx
-    version: 4.15.1-nginx-1.31.8-r2
+    version: 4.15.1-nginx-1.31.8-r3
     repository: oci://ghcr.io/rvvg/charts
 ```
 
@@ -155,7 +155,7 @@ spec:
   source:
     repoURL: ghcr.io/rvvg/charts
     chart: ingress-nginx
-    targetRevision: 4.15.1-nginx-1.31.8-r2
+    targetRevision: 4.15.1-nginx-1.31.8-r3
     helm:
       valuesObject: {}
 ```
@@ -183,7 +183,7 @@ spec:
   chart:
     spec:
       chart: ingress-nginx
-      version: 4.15.1-nginx-1.31.8-r2
+      version: 4.15.1-nginx-1.31.8-r3
       sourceRef:
         kind: HelmRepository
         name: ingress-nginx-ghcr
@@ -195,7 +195,7 @@ values; Helm only needs the new chart reference:
 
 ```console
 helm upgrade ingress-nginx oci://ghcr.io/rvvg/charts/ingress-nginx \
-  --version 4.15.1-nginx-1.31.8-r2 --namespace ingress-nginx --reuse-values
+  --version 4.15.1-nginx-1.31.8-r3 --namespace ingress-nginx --reuse-values
 ```
 
 With `--reuse-values`, image overrides from the previous release win over the chart defaults: remove any
@@ -212,9 +212,9 @@ controller:
   image:
     registry: ghcr.io/rvvg
     image: ingress-nginx/controller
-    tag: v1.15.1-nginx-1.31.8-r2
-    digest: sha256:4d4e73c96b0d5c692bbc18baf9021d589fef8ab4abb9e5e088d91c104a676a52
-    digestChroot: sha256:511e20cfe0c2f8f484a36a288fbd18a812f1b9702254b8a9fc23dd7dbe0ef90d
+    tag: v1.15.1-nginx-1.31.8-r3
+    digest: sha256:e4fd9d50aa800dd21c670964faeb8e9f9e1e58c1b9c41bdb19310798dfd321af
+    digestChroot: sha256:68788b3a40b6cbcd51dbe6a7d554002c60e233d7565c084de331de62dc6838a3
 ```
 
 ```console
@@ -230,15 +230,16 @@ helm upgrade ingress-nginx ingress-nginx/ingress-nginx --version 4.15.1 \
 ### Verifying images
 
 Images and the chart are signed with keyless [cosign](https://github.com/sigstore/cosign) from the release workflow,
-and every platform image has an SPDX SBOM attestation:
+and every platform image has an SPDX SBOM attestation. Use cosign v3 or newer: the signatures are stored as Sigstore
+bundles, which cosign v2 does not find (`no signatures found`).
 
 ```console
-cosign verify ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8-r2 \
+cosign verify ghcr.io/rvvg/ingress-nginx/controller:v1.15.1-nginx-1.31.8-r3 \
   --certificate-identity-regexp '^https://github.com/rvvg/ingress-nginx/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 cosign verify-attestation --type spdxjson \
-  ghcr.io/rvvg/ingress-nginx/controller@sha256:0521203a01646161a6de26774702715033f6da588c04ab147fbcae0f38c56abb \
+  ghcr.io/rvvg/ingress-nginx/controller@sha256:81e4ecb3ac76d9b7d9d2c3b9faa3bab9d1cc3fd1f95bd0d2cb3b06a5c7c9bea9 \
   --certificate-identity-regexp '^https://github.com/rvvg/ingress-nginx/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
