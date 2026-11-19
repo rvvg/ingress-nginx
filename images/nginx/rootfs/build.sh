@@ -18,7 +18,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-export NGINX_VERSION=1.31.8
+export NGINX_VERSION=1.31.9
 
 # Check for recent changes: https://github.com/openresty/ngx_devel_kit/compare/v0.3.6...master
 export NDK_VERSION=v0.3.6
@@ -189,7 +189,7 @@ mkdir --verbose -p "$BUILD_PATH"
 cd "$BUILD_PATH"
 
 # download, verify and extract the source files
-get_src 0652b760b3b772d2ec17b47c2fc15d9a95e6fe35cd5b877eadc1a62d9bc75af1 \
+get_src a11c5eeee2e257f4478f0e649f84b0040787d277d2d3e5233952aa6b6dcb80ad \
         "https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
 
 get_src e3438a71130b63760ac4accec9f77ac8f91ad8f778e1940b061e9ea83dd62fe7 \
