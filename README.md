@@ -1,12 +1,12 @@
-# ingress-nginx with NGINX 1.31.9
+# ingress-nginx with NGINX 1.31.10
 
 This repository is a maintained build of [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 `controller-v1.15.1` / chart `4.15.1`. The upstream project is retired and archived (see [below](#retiring)).
 This repository is not affiliated with the Kubernetes project.
 
 The controller code is unchanged from upstream except for a template change and an Ingress status fix (see [Behavior changes](#behavior-changes)).
-The NGINX base image is updated to NGINX 1.31.9 (mainline) with the patch set and Lua modules from
-[OpenResty v1.31.8.1](https://github.com/openresty/openresty/tree/v1.31.8.1). As in upstream, the build tracks the
+The NGINX base image is updated to NGINX 1.31.10 (mainline) with the patch set and Lua modules from
+[OpenResty v1.31.9.1](https://github.com/openresty/openresty/tree/v1.31.9.1). As in upstream, the build tracks the
 NGINX mainline version that OpenResty is based on: upstream used 1.21.6, 1.25.x and 1.27.1, all of which were mainline.
 
 ## Versions
@@ -18,13 +18,13 @@ kind e2e suite (regular and chroot) and the chart tests pass on every version in
 | ------------------------- | ---------------- | ---------------------- |
 | Controller image tag      | v1.15.1          | v1.15.1-nginx-1.31.9    |
 | Helm chart version        | 4.15.1           | 4.15.1-nginx-1.31.9     |
-| NGINX base image tag      | v2.2.8           | v2.3.2                |
-| NGINX                     | 1.27.1           | 1.31.9                |
-| OpenResty patch set       | 1.27.1.2         | 1.31.8.1              |
-| lua-nginx-module          | v0.10.28         | v0.10.32rc7           |
-| stream-lua-nginx-module   | v0.0.16          | v0.0.20rc3            |
-| lua-resty-core            | v0.1.31          | v0.1.35rc2            |
-| LuaJIT (openresty/luajit2)| v2.1-20250117    | v2.1-20261023         |
+| NGINX base image tag      | v2.2.8           | v2.3.3                |
+| NGINX                     | 1.27.1           | 1.31.10               |
+| OpenResty patch set       | 1.27.1.2         | 1.31.9.1              |
+| lua-nginx-module          | v0.10.28         | v0.10.32rc8           |
+| stream-lua-nginx-module   | v0.0.16          | v0.0.20rc4            |
+| lua-resty-core            | v0.1.31          | v0.1.35rc3            |
+| LuaJIT (openresty/luajit2)| v2.1-20250117    | v2.1-20261117         |
 | lua-upstream-nginx-module | v0.07            | v0.08                 |
 | ngx_devel_kit             | v0.3.3 (vision5) | v0.3.6 (openresty)    |
 | set-misc-nginx-module     | v0.33            | v0.34                 |
@@ -35,7 +35,7 @@ kind e2e suite (regular and chroot) and the chart tests pass on every version in
 | Alpine / OpenSSL          | 3.23.3 / 3.5.x   | 3.23.7 / 3.5.9        |
 | Kubernetes (e2e-tested)   | 1.31–1.35        | 1.31–1.37             |
 
-Module versions are taken from OpenResty v1.31.8.1 (`util/mirror-tarballs`). OpenResty publishes the Lua modules for this
+Module versions are taken from OpenResty v1.31.9.1 (`util/mirror-tarballs`). OpenResty publishes the Lua modules for this
 release line only as `rc` tags. All other modules (ModSecurity, OWASP CRS, geoip2, brotli, OpenTelemetry, mimalloc, ...)
 are unchanged from upstream. The full list is in [`images/nginx/rootfs/build.sh`](images/nginx/rootfs/build.sh).
 
@@ -43,11 +43,9 @@ are unchanged from upstream. The full list is in [`images/nginx/rootfs/build.sh`
 
 [`images/nginx/rootfs/patches/`](images/nginx/rootfs/patches) contains:
 
-- `00_drop-alias-root.patch`: the upstream ingress-nginx patch that removes the `root` and `alias` directives, regenerated for 1.31.8 (applies to 1.31.9 unchanged).
-- `01`–`37`: OpenResty `patches/nginx/1.31.8`, applied in the same order as OpenResty applies them. OpenResty has not
-  published a 1.31.9 patch set; the 1.31.8 patches apply to 1.31.9 unchanged. `29_balancer_pool_max_retry` is taken from
-  OpenResty master (openresty/openresty#1154: the cached-connection notification uses `0x80` instead of `0x1`, which
-  collided with `NGX_HTTP_UPSTREAM_NOTIFY_HEADER` and made successful responses consume Lua balancer retries).
+- `00_drop-alias-root.patch`: the upstream ingress-nginx patch that removes the `root` and `alias` directives, regenerated for 1.31.8 (applies to 1.31.10 unchanged).
+- `01`–`37`: OpenResty `patches/nginx/1.31.9` from v1.31.9.1, applied in the same order as OpenResty applies them.
+  OpenResty v1.31.9.1 is based on NGINX 1.31.9; its patches apply to 1.31.10 unchanged.
 
 The following OpenResty patches are not applied:
 
@@ -55,8 +53,8 @@ The following OpenResty patches are not applied:
 | --------------------------------------------------------------- | ------------------------------------------------------------ |
 | `server_header`, `builtin_error_page_footer`                    | OpenResty branding; also not applied by upstream ingress-nginx |
 | `no_pool`                                                       | Debug-only build option                                      |
-| `CVE-2026-9256`, `hash_overflow`, `setting_args_invalidates_uri` | OpenResty applies them only to older NGINX versions; not needed for 1.31.8 |
-| `initialize_quic_transport_id_variable`, `resolver_hosts`       | Present in the patch directory but not applied by OpenResty v1.31.8.1 |
+| `hash_overflow`, `setting_args_invalidates_uri`                 | OpenResty applies them only to older NGINX versions          |
+| `initialize_quic_transport_id_variable`, `resolver_hosts`       | Present in the patch directory but not applied by OpenResty v1.31.9.1 |
 
 The following upstream ingress-nginx patches were dropped because NGINX now includes the fix or feature:
 `CVE-2025-23419` (fixed in NGINX) and `stream_proxy_protocol_v2` (PROXY protocol v2 in the stream module is native since NGINX 1.31.4).
@@ -77,7 +75,7 @@ Ingress status ([`internal/ingress/status/status.go`](internal/ingress/status/st
   `hostNetwork`). The selector now ignores `topology.kubernetes.io/*`. Revision labels are still matched as upstream, so
   during a rollout only pods of the leader's revision are published.
 
-NGINX 1.27.1 → 1.31.9 changes that can affect traffic (full list: [CHANGES](https://nginx.org/en/CHANGES)):
+NGINX 1.27.1 → 1.31.10 changes that can affect traffic (full list: [CHANGES](https://nginx.org/en/CHANGES)):
 
 - 1.27.3: TLSv1 and TLSv1.1 are disabled by default. ingress-nginx sets `ssl_protocols` explicitly.
 - 1.29.4: Host/port validation in the request line, `Host` and `:authority` follows RFC 3986. A bare LF in chunked bodies is an error.
@@ -91,6 +89,8 @@ NGINX 1.27.1 → 1.31.9 changes that can affect traffic (full list: [CHANGES](ht
 - 1.31.7: HTTP/2 uses RFC 9218 prioritization. RFC 7540 priority signals are ignored.
 - 1.31.9: Request header lines without a colon are rejected (previously treated as headers with an empty value).
   Chunked request bodies with excessive framing (chunk sizes, extensions, trailers) are rejected as a flood.
+- 1.31.10: Security fix for `ssl_early_data` (CVE-2026-132779; the `ssl-early-data` option is off by default) and a fix
+  for CPU hogging with SSL connections to backends (`backend-protocol: HTTPS` / `GRPCS`).
 
 ## Artifacts
 
