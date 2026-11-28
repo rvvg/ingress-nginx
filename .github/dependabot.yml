@@ -1,43 +1,21 @@
+# This repository is a maintained build of the retired kubernetes/ingress-nginx
+# controller-v1.15.1. Dependencies of the controller and the test images are
+# kept as upstream left them; they are only updated for security fixes, which
+# come from Dependabot security updates (enabled in the repository settings).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     labels:
       - "area/dependency"
-      - "release-note-none"
-      - "ok-to-test"
     groups:
       actions:
         update-types:
           - "minor"
           - "patch"
-  - package-ecosystem: "docker"
-    directories:
-      - "**/rootfs"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "area/dependency"
-      - "release-note-none"
-      - "ok-to-test"
-    groups:
-      docker:
+    ignore:
+      - dependency-name: "*"
         update-types:
-          - "minor"
-          - "patch"
-  - package-ecosystem: "gomod"
-    directories:
-      - "/"
-      - "**/rootfs"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "area/dependency"
-      - "release-note-none"
-      - "ok-to-test"
-    groups:
-      go:
-        update-types:
-          - "patch"
+          - "version-update:semver-major"
